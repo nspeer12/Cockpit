@@ -278,6 +278,49 @@ actor InferenceService {
 
     // MARK: - Private: Ollama API
 
+    /// Streamed Ollama inference — yields tokens one by one.
+    nonisolated func streamOllama(endpoint: Endpoint, prompt: String, systemPrompt: String? = nil) -> AsyncStream<String> {
+        AsyncStream { continuation in
+            Task {
+                let url = endpoint.baseURL.appendingPathComponent("api/generate")
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.timeoutInterval = 120
+
+                var body: [String: Any] = [
+                    "model": endpoint.model,
+                    "prompt": prompt,
+                    "stream": true,
+                ]
+                if let sys = systemPrompt { body["system"] = sys }
+
+                do {
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                        continuation.finish()
+                        return
+                    }
+                    for try await line in bytes.lines {
+                        guard let data = line.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+                        if let token = json["response"] as? String {
+                            continuation.yield(token)
+                        }
+                        if json["done"] as? Bool == true {
+                            continuation.finish()
+                            return
+                        }
+                    }
+                } catch {
+                    continuation.yield("[error] \(error.localizedDescription)")
+                }
+                continuation.finish()
+            }
+        }
+    }
+
     private func callOllama(endpoint: Endpoint, prompt: String) async -> String {
         let url = endpoint.baseURL.appendingPathComponent("api/generate")
         var request = URLRequest(url: url)

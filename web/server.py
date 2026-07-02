@@ -230,7 +230,7 @@ body {
     </div>
   </div>
 
-  <div class="refresh">Auto-refresh · <span id="last-refresh">—</span></div>
+  <div class="refresh"><span id="last-refresh">—</span> · <span id="conn-status" style="color:var(--cyan)">SSE</span></div>
 
   <div class="metrics">
     <div class="card cpu">
@@ -268,28 +268,41 @@ body {
 </div>
 
 <script>
-async function refresh() {
-  try {
-    const r = await fetch('/api/stats');
-    const s = await r.json();
-    document.getElementById('cpu-val').textContent = s.cpu.load.toFixed(1) + ' / ' + s.cpu.cores;
-    document.getElementById('cpu-sub').textContent = s.cpu.percent.toFixed(1) + '% · ' + s.cpu.cores + ' cores';
-    document.getElementById('mem-val').textContent = s.memory.used_gb.toFixed(1) + ' GB';
-    document.getElementById('mem-sub').textContent = 'of ' + s.memory.total_gb.toFixed(0) + ' GB · ' + s.memory.percent.toFixed(1) + '%';
-    document.getElementById('disk-val').textContent = s.disk.used_gb.toFixed(1) + ' GB';
-    document.getElementById('disk-sub').textContent = 'of ' + s.disk.total_gb.toFixed(0) + ' GB · ' + s.disk.percent.toFixed(1) + '%';
-    document.getElementById('model-val').textContent = s.model || '—';
-    document.getElementById('model-sub').textContent = s.os.split('-')[0] || '';
-    document.getElementById('hostname').textContent = s.hostname;
-    document.getElementById('uptime').textContent = 'UPTIME ' + s.uptime;
-    document.getElementById('ts-nodes').textContent = s.tailscale_nodes + ' Tailnet nodes';
-    document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
-  } catch(e) {
-    console.error(e);
-  }
+function updateDashboard(s) {
+  document.getElementById('cpu-val').textContent = s.cpu.load.toFixed(1) + ' / ' + s.cpu.cores;
+  document.getElementById('cpu-sub').textContent = s.cpu.percent.toFixed(1) + '% · ' + s.cpu.cores + ' cores';
+  document.getElementById('mem-val').textContent = s.memory.used_gb.toFixed(1) + ' GB';
+  document.getElementById('mem-sub').textContent = 'of ' + s.memory.total_gb.toFixed(0) + ' GB · ' + s.memory.percent.toFixed(1) + '%';
+  document.getElementById('disk-val').textContent = s.disk.used_gb.toFixed(1) + ' GB';
+  document.getElementById('disk-sub').textContent = 'of ' + s.disk.total_gb.toFixed(0) + ' GB · ' + s.disk.percent.toFixed(1) + '%';
+  document.getElementById('model-val').textContent = s.model || '—';
+  document.getElementById('model-sub').textContent = s.os.split('-')[0] || '';
+  document.getElementById('hostname').textContent = s.hostname;
+  document.getElementById('uptime').textContent = 'UPTIME ' + s.uptime;
+  document.getElementById('ts-nodes').textContent = s.tailscale_nodes + ' Tailnet nodes';
+  document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
 }
-refresh();
-setInterval(refresh, 3000);
+
+// SSE — real-time push
+const evtSource = new EventSource('/api/events');
+evtSource.onmessage = function(e) {
+  try {
+    updateDashboard(JSON.parse(e.data));
+  } catch(_) {}
+};
+evtSource.onerror = function() {
+  document.getElementById('conn-status').textContent = 'FALLBACK';
+  document.getElementById('conn-status').style.color = 'var(--orange)';
+  // Fallback to polling
+  evtSource.close();
+  setInterval(async function() {
+    try {
+      const r = await fetch('/api/stats');
+      const s = await r.json();
+      updateDashboard(s);
+    } catch(_) {}
+  }, 3000);
+};
 </script>
 </body>
 </html>'''
@@ -303,6 +316,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps(api_stats()).encode())
+        elif path == '/api/events':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'keep-alive')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            try:
+                while True:
+                    data = json.dumps(api_stats())
+                    self.wfile.write(f'data: {data}\n\n'.encode())
+                    self.wfile.flush()
+                    time.sleep(3)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         elif path == '/health':
             self.send_response(200)
             self.end_headers()

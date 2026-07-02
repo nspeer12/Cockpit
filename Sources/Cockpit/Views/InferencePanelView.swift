@@ -13,6 +13,12 @@ struct InferencePanelView: View {
     @State private var isRunningInference = false
     @State private var selectedSource: InferenceService.ModelSource = .ollamaLocal
     @State private var lastRefresh: Date?
+    // New streaming + conversation
+    @State private var conversation: [ChatMessage] = []
+    @State private var tokenCount: Int = 0
+    @State private var useStreaming = true
+    @State private var systemPrompt: String = "You are a helpful assistant."
+    @State private var temperature: Double = 0.7
 
     let refreshTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
@@ -66,15 +72,21 @@ struct InferencePanelView: View {
                     .padding(.horizontal, 40)
 
                 // MARK: - Quick Inference Test
-                InferencePanelSectionHeader(title: "QUICK TEST")
+                InferencePanelSectionHeader(title: "CONVERSATION")
                     .padding(.horizontal, 40)
 
-                QuickTestCard(
+                ConversationView(
+                    messages: conversation,
+                    systemPrompt: $systemPrompt,
+                    temperature: $temperature,
+                    useStreaming: $useStreaming,
                     selectedSource: $selectedSource,
                     testPrompt: $testPrompt,
+                    localModels: localModels,
                     isRunningInference: $isRunningInference,
-                    inferenceResult: $inferenceResult,
-                    onRun: { Task { await runInferenceTest() } }
+                    tokenCount: $tokenCount,
+                    onSend: { Task { await runStreamingInference() } },
+                    onClear: { conversation.removeAll(); tokenCount = 0; inferenceResult = "" }
                 )
                 .padding(.horizontal, 40)
 
@@ -148,14 +160,44 @@ struct InferencePanelView: View {
         }
     }
 
-    private func runInferenceTest() async {
+    private func runStreamingInference() async {
         isRunningInference = true
         inferenceResult = ""
+        tokenCount = 0
 
         let service = InferenceService()
-        let result = await service.route(prompt: testPrompt, preferredSource: selectedSource)
+        let userMsg = ChatMessage(role: "user", content: testPrompt)
+        await MainActor.run { conversation.append(userMsg) }
+        let prompt = testPrompt
+        testPrompt = ""
+
+        // Get the endpoint for selected source
+        guard let endpoint = InferenceService.defaultEndpoints.first(where: { $0.source == selectedSource }) else {
+            await MainActor.run {
+                conversation.append(ChatMessage(role: "assistant", content: "[error] No endpoint configured for this source"))
+                isRunningInference = false
+            }
+            return
+        }
+
+        var fullResponse = ""
+        let stream = service.streamOllama(endpoint: endpoint, prompt: prompt, systemPrompt: systemPrompt)
+
+        for await token in stream {
+            fullResponse += token
+            tokenCount += 1
+            await MainActor.run {
+                // Update the last assistant message in place
+                if conversation.last?.role == "assistant" {
+                    conversation[conversation.count - 1] = ChatMessage(role: "assistant", content: fullResponse)
+                } else {
+                    conversation.append(ChatMessage(role: "assistant", content: fullResponse))
+                }
+            }
+        }
+
         await MainActor.run {
-            inferenceResult = result
+            inferenceResult = fullResponse
             isRunningInference = false
         }
     }
@@ -578,4 +620,239 @@ struct OllamaModel: Identifiable {
     let name: String
     let size: String
     let modified: String
+}
+
+// MARK: - Chat Message Model
+
+struct ChatMessage: Identifiable, Equatable {
+    let id = UUID()
+    let role: String
+    let content: String
+}
+
+// MARK: - Conversation View
+
+struct ConversationView: View {
+    let messages: [ChatMessage]
+    @Binding var systemPrompt: String
+    @Binding var temperature: Double
+    @Binding var useStreaming: Bool
+    @Binding var selectedSource: InferenceService.ModelSource
+    @Binding var testPrompt: String
+    let localModels: [OllamaModel]
+    @Binding var isRunningInference: Bool
+    @Binding var tokenCount: Int
+    var onSend: () -> Void
+    var onClear: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Controls row
+            HStack(spacing: 12) {
+                // System prompt
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SYSTEM")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                        .tracking(1)
+                    TextField("System prompt…", text: $systemPrompt)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                        .padding(8)
+                        .background(Color.white.opacity(0.05))
+                        .cornerRadius(6)
+                }
+
+                // Temperature
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TEMP: \(String(format: "%.1f", temperature))")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                        .tracking(1)
+                    Slider(value: $temperature, in: 0...2, step: 0.1)
+                        .tint(.cyan)
+                }
+
+                // Token count
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("TOKENS")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                        .tracking(1)
+                    Text("\(tokenCount)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.cyan)
+                }
+            }
+
+            // Conversation messages
+            ConversationMessagesList(
+                messages: messages,
+                isRunningInference: isRunningInference
+            )
+            .frame(maxHeight: 200)
+            .background(Color.white.opacity(0.03))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+            )
+
+            // Prompt input row
+            HStack(spacing: 8) {
+                // Source picker
+                Picker("", selection: $selectedSource) {
+                    ForEach(InferenceService.ModelSource.allCases, id: \.self) { src in
+                        Text(src.rawValue).tag(src)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 140)
+
+                TextField("Message…", text: $testPrompt)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                    .padding(10)
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .onSubmit { if !isRunningInference { onSend() } }
+
+                Button(action: onSend) {
+                    Image(systemName: isRunningInference ? "hourglass" : "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(isRunningInference ? Color.secondary : Color.cyan)
+                }
+                .disabled(isRunningInference)
+                .buttonStyle(PlainButtonStyle())
+
+                Button(action: onClear) {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .disabled(messages.isEmpty)
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Status
+            if !messages.isEmpty {
+                HStack {
+                    Circle().fill(.green).frame(width: 5, height: 5)
+                    Text("\(messages.count) messages · \(tokenCount) tokens")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(18)
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(white: 1.0).opacity(0.10), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Message Bubble
+
+struct MessageBubble: View {
+    let message: ChatMessage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: message.role == "user" ? "person.circle.fill" : "brain.head.profile")
+                .font(.system(size: 14))
+                .foregroundStyle(message.role == "user" ? .cyan : .purple)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(message.role.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(message.role == "user" ? .cyan : .purple)
+
+                Text(message.content)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .textSelection(.enabled)
+            }
+
+            Spacer()
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(message.role == "user" ? Color.cyan.opacity(0.06) : Color.purple.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(message.role == "user" ? Color.cyan.opacity(0.12) : Color.purple.opacity(0.12), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Empty Conversation Prompt
+
+struct EmptyConversationPrompt: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "brain")
+                .font(.title2)
+                .foregroundStyle(.secondary.opacity(0.3))
+            Text("Start a conversation")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Running Indicator
+
+struct RunningIndicator: View {
+    var body: some View {
+        HStack {
+            ProgressView().scaleEffect(0.6)
+            Text("Generating…").font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Conversation Messages List
+
+struct ConversationMessagesList: View {
+    let messages: [ChatMessage]
+    let isRunningInference: Bool
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(messages) { msg in
+                        MessageBubble(message: msg)
+                            .id(msg.id)
+                    }
+                    if isRunningInference {
+                        RunningIndicator()
+                    }
+                    if messages.isEmpty {
+                        EmptyConversationPrompt()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 30)
+                    }
+                }
+                .padding(8)
+            }
+            .onChange(of: messages.count) { _, _ in
+                if let last = messages.last {
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+        }
+    }
 }
