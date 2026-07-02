@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 // MARK: - Glassmorphism Component Library
 //
@@ -196,7 +197,7 @@ struct NeonRingProgress: View {
 
 // MARK: - Sparkline Graph
 
-/// Mini line chart for live metric history
+/// Mini line chart for live metric history — uses Swift Charts (macOS 15+)
 struct Sparkline: View {
     let data: [Double]     // Values 0...1 normalized
     let color: Color
@@ -212,51 +213,36 @@ struct Sparkline: View {
         self.showGlow = showGlow
     }
 
+    private var indexedData: [(index: Int, value: Double)] {
+        data.enumerated().map { ($0.offset, $0.element) }
+    }
+
     var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let h = geo.size.height
-            let points = data.enumerated().map { (i, val) in
-                CGPoint(
-                    x: data.count > 1 ? CGFloat(i) / CGFloat(data.count - 1) * width : width / 2,
-                    y: h - CGFloat(val) * h
+        Chart(indexedData, id: \.index) { pt in
+            LineMark(
+                x: .value("Time", pt.index),
+                y: .value("Value", pt.value)
+            )
+            .foregroundStyle(color)
+            .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            .shadow(color: showGlow ? color.opacity(0.5) : .clear, radius: 4)
+
+            AreaMark(
+                x: .value("Time", pt.index),
+                y: .value("Value", pt.value)
+            )
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [color.opacity(0.15), color.opacity(0.01)],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-            }
-
-            ZStack {
-                // Filled area
-                if points.count > 1 {
-                    Path { path in
-                        path.move(to: CGPoint(x: points[0].x, y: h))
-                        for pt in points {
-                            path.addLine(to: pt)
-                        }
-                        path.addLine(to: CGPoint(x: points.last?.x ?? 0, y: h))
-                        path.closeSubpath()
-                    }
-                    .fill(
-                        LinearGradient(
-                            colors: [color.opacity(0.2), color.opacity(0.02)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                }
-
-                // Glow line
-                if points.count > 1 {
-                    Path { path in
-                        path.move(to: points[0])
-                        for pt in points.dropFirst() {
-                            path.addLine(to: pt)
-                        }
-                    }
-                    .trim(from: 0, to: drawProgress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                    .shadow(color: showGlow ? color.opacity(0.5) : .clear, radius: 4)
-                }
-            }
+            )
+            .opacity(drawProgress)
         }
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .chartYScale(domain: 0...1)
         .frame(height: height)
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) {
