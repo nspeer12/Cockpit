@@ -18,20 +18,28 @@ struct OverviewView: View {
     @State private var cpuHistory: [Double] = Array(repeating: 0, count: 60)
     @State private var memHistory: [Double] = Array(repeating: 0, count: 60)
     @State private var events: [LiveEvent] = []
+    @State private var previousCPU: Double = 0
+    @State private var previousMem: Double = 0
+    @State private var previousDisk: Double = 0
+    @State private var viewAppeared: Bool = false
     let refreshTimer = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
-            // Floating data particles behind everything
             FloatingDataParticles(count: 25, color: .cyan)
                 .opacity(0.5)
+
+            ScanningLine(color: .cyan, speed: 5)
+                .opacity(0.3)
 
             VStack(spacing: 0) {
                 Spacer()
 
-                // Central Hero Section
                 heroSection
                     .padding(.horizontal, 40)
+                    .opacity(viewAppeared ? 1 : 0)
+                    .scaleEffect(viewAppeared ? 1 : 0.95)
+                    .blur(radius: viewAppeared ? 0 : 4)
 
                 Spacer().frame(height: 16)
 
@@ -40,29 +48,38 @@ struct OverviewView: View {
                     MetricRingCard(
                         title: "CPU",
                         value: String(format: "%.1f%%", cpuPercent),
-                        subtitle: "\(ProcessInfo.processInfo.processorCount) CORES",
+                        subtitle: formattedCores(),
                         icon: "cpu",
                         progress: min(cpuPercent / 100.0, 1.0),
-                        tint: cpuPercent > 80 ? .red : cpuPercent > 50 ? .orange : .cyan
+                        tint: cpuPercent > 80 ? .red : cpuPercent > 50 ? .orange : .cyan,
+                        delta: previousCPU > 0 ? cpuPercent - previousCPU : nil
                     )
+                    .opacity(viewAppeared ? 1 : 0)
+                    .offset(y: viewAppeared ? 0 : 20)
 
                     MetricRingCard(
                         title: "MEMORY",
-                        value: String(format: "%.1f", memoryUsed),
-                        subtitle: "OF \(String(format: "%.0f", memoryTotal)) GB",
+                        value: formattedMemoryUsed(),
+                        subtitle: formattedMemoryTotal(),
                         icon: "memorychip",
                         progress: min(memoryPercent / 100.0, 1.0),
-                        tint: memoryPercent > 85 ? .red : memoryPercent > 60 ? .orange : .cyan
+                        tint: memoryPercent > 85 ? .red : memoryPercent > 60 ? .orange : .cyan,
+                        delta: previousMem > 0 ? memoryPercent - previousMem : nil
                     )
+                    .opacity(viewAppeared ? 1 : 0)
+                    .offset(y: viewAppeared ? 0 : 20)
 
                     MetricRingCard(
                         title: "DISK",
-                        value: String(format: "%.1f", diskUsed),
-                        subtitle: "OF \(String(format: "%.0f", diskTotal)) GB",
+                        value: formattedDiskUsed(),
+                        subtitle: formattedDiskTotal(),
                         icon: "internaldrive",
                         progress: min(diskPercent / 100.0, 1.0),
-                        tint: diskPercent > 90 ? .red : diskPercent > 70 ? .orange : .cyan
+                        tint: diskPercent > 90 ? .red : diskPercent > 70 ? .orange : .cyan,
+                        delta: previousDisk > 0 ? diskPercent - previousDisk : nil
                     )
+                    .opacity(viewAppeared ? 1 : 0)
+                    .offset(y: viewAppeared ? 0 : 20)
 
                     MetricRingCard(
                         title: "MODEL",
@@ -72,18 +89,19 @@ struct OverviewView: View {
                         progress: 0.85,
                         tint: .purple
                     )
+                    .opacity(viewAppeared ? 1 : 0)
+                    .offset(y: viewAppeared ? 0 : 20)
                 }
                 .padding(.horizontal, 40)
 
                 Spacer().frame(height: 12)
 
-                // Sparkline graphs row
                 HStack(spacing: 16) {
-                    GlassCard(title: "CPU HISTORY", glowColor: .cyan) {
+                    GlassCard(title: "CPU HISTORY", glowColor: .cyan, entranceDelay: 0.3) {
                         Sparkline(data: cpuHistory, color: .cyan, height: 36)
                     }
 
-                    GlassCard(title: "MEMORY HISTORY", glowColor: .blue) {
+                    GlassCard(title: "MEMORY HISTORY", glowColor: .blue, entranceDelay: 0.4) {
                         Sparkline(data: memHistory, color: .blue, height: 36)
                     }
                 }
@@ -91,16 +109,13 @@ struct OverviewView: View {
 
                 Spacer().frame(height: 12)
 
-                // Bottom row: event feed + ambient sensors
                 HStack(spacing: 16) {
-                    // Live Event Feed
-                    GlassCard(title: "EVENT LOG", glowColor: .green) {
+                    GlassCard(title: "EVENT LOG", glowColor: .green, entranceDelay: 0.5) {
                         LiveEventFeed(events: events)
                             .frame(height: 100)
                     }
 
-                    // Ambient Sensors
-                    GlassCard(title: "AMBIENT", glowColor: .purple) {
+                    GlassCard(title: "AMBIENT", glowColor: .purple, entranceDelay: 0.6) {
                         HStack(spacing: 12) {
                             CameraFeedView()
                                 .frame(width: 120, height: 80)
@@ -115,9 +130,10 @@ struct OverviewView: View {
 
                 Spacer().frame(height: 12)
 
-                // Host Identity Bar
                 hostIdentityBar
                     .padding(.horizontal, 40)
+                    .opacity(viewAppeared ? 1 : 0)
+                    .offset(y: viewAppeared ? 0 : 10)
 
                 Spacer().frame(height: 16)
             }
@@ -128,7 +144,32 @@ struct OverviewView: View {
         .onAppear {
             refreshSystemInfo()
             addStartupEvents()
+            withAnimation(.easeOut(duration: 0.8).delay(0.1)) {
+                viewAppeared = true
+            }
         }
+    }
+
+    // MARK: - Formatted helpers (avoid nested string interpolation issues)
+
+    private func formattedCores() -> String {
+        "\(ProcessInfo.processInfo.processorCount) CORES"
+    }
+
+    private func formattedMemoryUsed() -> String {
+        String(format: "%.1f", memoryUsed)
+    }
+
+    private func formattedMemoryTotal() -> String {
+        "OF \(String(format: "%.0f", memoryTotal)) GB"
+    }
+
+    private func formattedDiskUsed() -> String {
+        String(format: "%.1f", diskUsed)
+    }
+
+    private func formattedDiskTotal() -> String {
+        "OF \(String(format: "%.0f", diskTotal)) GB"
     }
 
     // MARK: - Hero Section
@@ -141,16 +182,23 @@ struct OverviewView: View {
             Spacer().frame(width: 36)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("HERMES")
-                    .font(.system(size: 52, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.cyan, .blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                ZStack {
+                    Text("HERMES")
+                        .font(.system(size: 52, weight: .black, design: .rounded))
+                        .foregroundStyle(.cyan.opacity(0.15))
+                        .blur(radius: 20)
+
+                    Text("HERMES")
+                        .font(.system(size: 52, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.cyan, .blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .shadow(color: .cyan.opacity(0.3), radius: 12)
+                        .shadow(color: .cyan.opacity(0.3), radius: 12)
+                }
 
                 Text("COMMAND INTERFACE")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -165,7 +213,6 @@ struct OverviewView: View {
                 }
                 .padding(.top, 4)
 
-                // Quick stats row
                 HStack(spacing: 20) {
                     HolographicLabel(hostname, icon: "desktopcomputer")
                     HolographicLabel("UPTIME \(uptime)", icon: "clock", color: .green)
@@ -218,7 +265,10 @@ struct OverviewView: View {
             let provider = SystemInfoService.activeProvider()
 
             DispatchQueue.main.async {
-                let oldCPU = self.cpuPercent
+                previousCPU = cpuPercent
+                previousMem = memoryPercent
+                previousDisk = diskPercent
+
                 self.cpuPercent = cpu
                 self.memoryUsed = mem.usedGB
                 self.memoryTotal = mem.totalGB
@@ -231,18 +281,18 @@ struct OverviewView: View {
                 self.activeModel = model
                 self.activeProvider = provider
 
-                // Update histories
                 self.cpuHistory.append(min(cpu / 100.0, 1.0))
                 self.memHistory.append(min(mem.percentUsed / 100.0, 1.0))
                 if self.cpuHistory.count > 60 { self.cpuHistory.removeFirst() }
                 if self.memHistory.count > 60 { self.memHistory.removeFirst() }
 
-                // Log significant events
-                if abs(cpu - oldCPU) > 15 {
-                    self.addEvent("CPU spike: \(String(format: "%.1f", cpu))%", type: cpu > 80 ? .warning : .info)
+                if abs(cpu - previousCPU) > 15 {
+                    let msg = "CPU spike: \(String(format: "%.1f", cpu))%"
+                    self.addEvent(msg, type: cpu > 80 ? .warning : .info)
                 }
-                if mem.percentUsed > 85 && oldCPU <= 85 {
-                    self.addEvent("Memory pressure: \(String(format: "%.1f", mem.percentUsed))%", type: .warning)
+                if mem.percentUsed > 85 && previousMem <= 85 {
+                    let msg = "Memory pressure: \(String(format: "%.1f", mem.percentUsed))%"
+                    self.addEvent(msg, type: .warning)
                 }
             }
         }
@@ -258,7 +308,9 @@ struct OverviewView: View {
 
     private func addEvent(_ text: String, type: LiveEvent.EventType) {
         let event = LiveEvent(timestamp: Date(), text: text, type: type)
-        events.insert(event, at: 0)
+        withAnimation(.easeOut(duration: 0.3)) {
+            events.insert(event, at: 0)
+        }
         if events.count > 50 { events.removeLast() }
     }
 

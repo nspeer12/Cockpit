@@ -13,17 +13,21 @@ struct GlassCard<Content: View>: View {
     let title: String?
     let glowColor: Color
     let cornerRadius: CGFloat
+    let entranceDelay: Double
+    @State private var isVisible: Bool = false
     @ViewBuilder let content: () -> Content
 
     init(
         title: String? = nil,
         glowColor: Color = .cyan,
         cornerRadius: CGFloat = 16,
+        entranceDelay: Double = 0,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
         self.glowColor = glowColor
         self.cornerRadius = cornerRadius
+        self.entranceDelay = entranceDelay
         self.content = content
     }
 
@@ -51,6 +55,13 @@ struct GlassCard<Content: View>: View {
                 .blur(radius: 4)
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .opacity(isVisible ? 1 : 0)
+        .offset(y: isVisible ? 0 : 12)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.5).delay(entranceDelay)) {
+                isVisible = true
+            }
+        }
     }
 }
 
@@ -139,6 +150,7 @@ struct NeonRingProgress: View {
     let size: CGFloat
     let lineWidth: CGFloat
     @State private var animationProgress: Double = 0
+    @State private var isGlowing: Bool = false
 
     var body: some View {
         ZStack {
@@ -159,7 +171,8 @@ struct NeonRingProgress: View {
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .shadow(color: color.opacity(0.5), radius: 6)
+                .shadow(color: color.opacity(isGlowing ? 0.6 : 0.3), radius: isGlowing ? 10 : 6)
+                .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true).delay(1.0), value: isGlowing)
 
             // Glow dot at tip
             if animationProgress > 0.01 {
@@ -173,7 +186,7 @@ struct NeonRingProgress: View {
 
             // Center content
             VStack(spacing: 2) {
-                Text("\(Int(progress * 100))")
+                Text("\\(Int(progress * 100))")
                     .font(.system(size: size * 0.22, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
                 Text("%")
@@ -185,6 +198,9 @@ struct NeonRingProgress: View {
         .onAppear {
             withAnimation(.easeOut(duration: 1.2)) {
                 animationProgress = progress
+            }
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true).delay(1.0)) {
+                isGlowing = true
             }
         }
         .onChange(of: progress) { _, newValue in
@@ -298,6 +314,8 @@ struct StatusPulseDot: View {
     let isActive: Bool
     let color: Color
 
+    @State private var pulseScale: CGFloat = 1.0
+
     var body: some View {
         ZStack {
             if isActive {
@@ -323,8 +341,6 @@ struct StatusPulseDot: View {
             withAnimation { pulseScale = active ? 1.8 : 1.0 }
         }
     }
-
-    @State private var pulseScale: CGFloat = 1.0
 }
 
 // MARK: - Data Stream Decoration
@@ -450,6 +466,27 @@ struct MetricRingCard: View {
     let icon: String
     let progress: Double // 0...1
     let tint: Color
+    let delta: Double? // +/- percentage change, nil = no indicator
+
+    @State private var isHovered: Bool = false
+
+    init(
+        title: String,
+        value: String,
+        subtitle: String,
+        icon: String,
+        progress: Double,
+        tint: Color,
+        delta: Double? = nil
+    ) {
+        self.title = title
+        self.value = value
+        self.subtitle = subtitle
+        self.icon = icon
+        self.progress = progress
+        self.tint = tint
+        self.delta = delta
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -470,14 +507,37 @@ struct MetricRingCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+
+            // Delta indicator
+            if let delta = delta {
+                HStack(spacing: 3) {
+                    Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 7, weight: .bold))
+                    Text(String(format: "%.1f%%", abs(delta)))
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                }
+                .foregroundStyle(delta >= 0 ? .green : .orange)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background((delta >= 0 ? Color.green : Color.orange).opacity(0.1))
+                .cornerRadius(4)
+            }
         }
         .padding(12)
         .background(.ultraThinMaterial)
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(tint.opacity(0.12), lineWidth: 1)
+                .stroke(tint.opacity(isHovered ? 0.25 : 0.12), lineWidth: 1)
         )
+        .shadow(color: tint.opacity(isHovered ? 0.1 : 0), radius: isHovered ? 10 : 0)
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.easeOut(duration: 0.2), value: isHovered)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -490,5 +550,173 @@ struct ScanningLineOverlay: View {
 
     var body: some View {
         ScanningLine(color: .cyan, speed: 4)
+    }
+}
+
+// MARK: - Holographic Progress Bar (NEW)
+
+/// Animated glowing horizontal progress bar for metrics
+struct HolographicProgressBar: View {
+    let value: Double          // 0...1
+    let color: Color
+    let height: CGFloat
+    let showLabel: Bool
+
+    @State private var animValue: Double = 0
+    @State private var glowPulse: Bool = false
+
+    init(value: Double, color: Color = .cyan, height: CGFloat = 6, showLabel: Bool = true) {
+        self.value = value
+        self.color = color
+        self.height = height
+        self.showLabel = showLabel
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack(alignment: .leading) {
+                // Track
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(color.opacity(0.08))
+                    .frame(height: height)
+
+                // Fill
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.6), color, color.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(height, CGFloat(animValue) * 200), height: height)
+                    .shadow(color: color.opacity(glowPulse ? 0.4 : 0.15), radius: height)
+                    .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true).delay(1.5), value: glowPulse)
+            }
+
+            if showLabel {
+                Text("\\(Int(value * 100))%")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(color.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.0)) {
+                animValue = value
+            }
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true).delay(1.5)) {
+                glowPulse = true
+            }
+        }
+        .onChange(of: value) { _, newValue in
+            withAnimation(.easeOut(duration: 0.6)) {
+                animValue = newValue
+            }
+        }
+    }
+}
+
+// MARK: - Animated Value Text (NEW)
+
+/// Digit-rolling counter for numeric values — animates between old and new
+struct AnimatedValueText: View {
+    let value: Int
+    let font: Font
+    let color: Color
+    let duration: Double
+
+    @State private var displayValue: Int = 0
+    @State private var isAnimating: Bool = false
+
+    init(value: Int, font: Font = .system(.body, design: .monospaced), color: Color = .white, duration: Double = 0.4) {
+        self.value = value
+        self.font = font
+        self.color = color
+        self.duration = duration
+    }
+
+    var body: some View {
+        Text("\\(displayValue)")
+            .font(font)
+            .foregroundStyle(color)
+            .contentTransition(.numericText(value: Double(displayValue)))
+            .onChange(of: value) { _, newValue in
+                withAnimation(.easeOut(duration: duration)) {
+                    displayValue = newValue
+                }
+            }
+            .onAppear {
+                displayValue = value
+            }
+    }
+}
+
+// MARK: - Data Glitch Effect (NEW)
+
+/// Occasional "glitch" or data corruption animation on text
+struct DataGlitchText: View {
+    let text: String
+        let color: Color
+
+        @State private var glitching: Bool = false
+        @State private var glitchOffset: CGFloat = 0
+        @State private var glitchOpacity: CGFloat = 1.0
+        let glitchInterval: Double // seconds between glitches
+
+    init(_ text: String, color: Color = .cyan, glitchInterval: Double = 4.0) {
+        self.text = text
+        self.color = color
+        self.glitchInterval = glitchInterval
+    }
+
+    var body: some View {
+        ZStack {
+            // Glitch ghost (offset copy)
+            Text(text)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.red.opacity(glitching ? 0.6 : 0))
+                .offset(x: glitching ? glitchOffset : 0)
+
+            // Blue ghost
+            Text(text)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.blue.opacity(glitching ? 0.5 : 0))
+                .offset(x: glitching ? -glitchOffset : 0)
+
+            // Main text
+            Text(text)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(color.opacity(glitchOpacity))
+        }
+        .onAppear {
+            triggerGlitch()
+            startTimer()
+        }
+    }
+
+    private func triggerGlitch() {
+        let steps = 4
+        let stepDuration = 0.04
+
+        for i in 0..<steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * stepDuration) {
+                if i.isMultiple(of: 2) {
+                    glitchOffset = CGFloat.random(in: -2...2)
+                    glitchOpacity = 0.7
+                    glitching = true
+                } else {
+                    glitchOffset = 0
+                    glitchOpacity = 1.0
+                    glitching = false
+                }
+            }
+        }
+    }
+
+    private func startTimer() {
+        Timer.scheduledTimer(withTimeInterval: glitchInterval, repeats: true) { _ in
+            triggerGlitch()
+        }
     }
 }

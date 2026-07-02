@@ -6,6 +6,11 @@ struct ContentView: View {
     @State private var show3DBackground: Bool = true
     @State private var mouseRotation: CGPoint = .zero
     @State private var jarvisController = JarvisController()
+    @State private var tabTransition: TabTransitionDirection = .forward
+
+    enum TabTransitionDirection {
+        case forward, backward
+    }
 
     enum Tab: String, CaseIterable {
         case overview = "Overview"
@@ -39,71 +44,62 @@ struct ContentView: View {
                 // Top Command Bar
                 TopCommandBar(jarvisController: jarvisController)
 
-                // Main Content
+                // Main Content with crossfade transition
                 Group {
                     switch selectedTab {
                     case .overview:
                         OverviewView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("overview")
                     case .inference:
                         InferencePanelView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("inference")
                     case .projects:
                         ProjectsView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("projects")
                     case .network:
                         NetworkView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("network")
                     case .node:
                         NodeView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("node")
                     case .ambient:
                         AmbientDashboardView()
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
+                                removal: .opacity.animation(.easeIn(duration: 0.15))
+                            ))
+                            .id("ambient")
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.easeInOut(duration: 0.25), value: selectedTab)
 
-                // Bottom Tab Bar
-                if #available(macOS 13.0, *) {
-                    if NSApplication.shared.mainWindow?.contentView?.frame.width ?? 0 < 800 {
-                        CustomTabBar(selectedTab: $selectedTab)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 12)
-                            .background(.ultraThinMaterial)
-                    }
-                } else {
-                    CustomTabBar(selectedTab: $selectedTab)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
-                        .background(.ultraThinMaterial)
-                }
-            }
-
-            // JARVIS Overlay
-            if jarvisController.jarvisActive {
-                JarvisOverlay(controller: jarvisController)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                // Custom Tab Bar
+                CustomTabBar(selectedTab: $selectedTab)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
             }
         }
-        .ignoresSafeArea()
-        .animation(.easeInOut(duration: 0.3), value: jarvisController.jarvisActive)
-        .onKeyPress(.space) {
-            show3DBackground.toggle()
-            return .handled
-        }
-        .onAppear {
-            setupMouseTracking()
-        }
-        .onDisappear {
-            teardownMouseTracking()
-        }
-    }
-
-    // MARK: - Mouse Parallax Tracking
-
-    private func setupMouseTracking() {
-        MouseParallaxTracker.shared.onMove = { rotation in
-            mouseRotation = rotation
-        }
-        MouseParallaxTracker.shared.start()
-    }
-
-    private func teardownMouseTracking() {
-        MouseParallaxTracker.shared.stop()
     }
 }
