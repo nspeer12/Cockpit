@@ -18,6 +18,9 @@ Icon?
 # Cockpit PWA assets (the macOS Icon? rule above is case-insensitive here)
 !web/static/icons/
 !web/static/icons/**
+
+# Intermediate iconutil input directory; source SVG, master PNG, and .icns are tracked.
+Assets/*.iconset/
 .Spotlight-V100
 .Trashes
 
