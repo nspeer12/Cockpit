@@ -46,21 +46,21 @@ The result is not a remote terminal and not a mobile copy of the macOS Cockpit. 
 
 ## 4. Recommended product shape
 
-### Phase A — Upgrade the existing PWA into the primary client
+### Phase A — Gateway discovery plus native iOS foundation
 
-Ship a conversational PWA first, reachable only through Tailscale HTTPS. This is the fastest way to validate the product on Nick’s actual phone without waiting for Xcode or App Store delivery.
+Run the secure gateway discovery spike first, then begin a native SwiftUI iOS client immediately against the proven contracts. The existing Tailnet PWA remains a lightweight installable fallback and a fast contract-validation surface, but it is not the primary end-state client.
 
-The PWA will add authenticated NEO chat, server-streamed responses, conversation history, agent run status, handoff to Telegram, and a safe approval inbox. It remains installable from Safari/Chrome.
+The first native vertical slice will include authenticated NEO chat, server-streamed responses, conversation history, agent run status, handoff to Telegram, and a safe approval inbox.
 
-### Phase B — Native iOS client once the gateway is stable
+### Phase B — PWA companion and contract-parity route
 
-Build a SwiftUI iOS client against the exact same gateway contracts. Native iOS is justified for reliable APNs notifications, Face ID/passcode lock, native speech recognition/TTS, widgets, Shortcuts, background refresh, and more dependable long-lived app behavior.
+Keep the installable PWA aligned with the same gateway contracts as a private cross-platform fallback, rapid iteration surface, and recovery client. Native iOS owns the primary mobile experience; the PWA remains useful when native installation, push, or device availability is constrained.
 
 Android is deliberately deferred until the product/API is stable. The PWA remains the cross-platform route.
 
 ### Why this order
 
-A native app without a stable agent gateway would be expensive UI work around an unsafe or changing backend. A secure mobile API and a real conversational PWA establish the contracts first; the native client then becomes a focused client implementation rather than a parallel system.
+A native app without a stable agent gateway would be expensive UI work around an unsafe or changing backend. The gateway discovery spike establishes the contracts first; native iOS begins immediately afterward as the primary client. The PWA then stays aligned as a private fallback and contract-validation surface rather than a parallel backend.
 
 ## 5. Scope and feature sets
 
@@ -200,14 +200,15 @@ Hermes Gateway / API-server integration
 
 **Exit criteria:** a local/Tailnet test client can pair, create a mobile-owned session, send a message, stream a verified response, cancel safely, and audit the lifecycle.
 
-### Milestone 1 — NEO Mobile conversational vertical slice
+### Milestone 1 — Native iOS conversational vertical slice
 
-- Build pairing/login and protected mobile shell.
+- Install/enable Xcode and an iOS build/test path before beginning the client.
+- Build pairing/login and protected native SwiftUI shell.
 - Build mobile conversation, streaming renderer, run status, retry/cancel, conversation list, and app-install flow.
 - Add real Cockpit status card and explicit offline/degraded UX.
 - Add Telegram handoff and fallback deep links.
 
-**Exit criteria:** Nick can use the installed PWA privately as a daily chat client, then continue the same work through an explicit handoff in Telegram if needed.
+**Exit criteria:** Nick can use the native iOS app privately as a daily chat client, then continue the same work through an explicit handoff in Telegram if needed.
 
 ### Milestone 2 — Notification and continuity loop
 
@@ -285,7 +286,7 @@ Hermes Gateway / API-server integration
 
 The recommended defaults are shown in **bold**.
 
-1. **Target the iPhone/PWA first, with native iOS following the proven gateway**, or fund native iOS immediately after the discovery spike?
+1. **Decided: begin native iOS immediately after the gateway-discovery milestone.** The PWA remains a private fallback and API-contract parity surface.
 2. Should the app be **single-user, Nick-only**, or should family/team device support be part of the first design?
 3. For mobile lock, is **Face ID/passcode required at launch**, or only required before approvals/actions?
 4. Should Telegram receive **only critical fallback events**, or remain mirrored for all NEO responses during the first release?
