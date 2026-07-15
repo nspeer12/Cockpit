@@ -6,6 +6,8 @@ CONFIGURATION="${1:-debug}"
 APP_DIR="$ROOT_DIR/.build/Cockpit.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+ASSETS_DIR="$ROOT_DIR/Assets"
 BINARY_PATH="$ROOT_DIR/.build/arm64-apple-macosx/$CONFIGURATION/Cockpit"
 
 cd "$ROOT_DIR"
@@ -16,9 +18,15 @@ else
   swift build
 fi
 
+if [[ ! -f "$ASSETS_DIR/NEOIcon.icns" ]]; then
+  echo "Missing NEO app icon: $ASSETS_DIR/NEOIcon.icns" >&2
+  exit 1
+fi
+
 rm -rf "$APP_DIR"
-mkdir -p "$MACOS_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BINARY_PATH" "$MACOS_DIR/Cockpit"
+cp "$ASSETS_DIR/NEOIcon.icns" "$RESOURCES_DIR/NEOIcon.icns"
 chmod +x "$MACOS_DIR/Cockpit"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
@@ -30,6 +38,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <string>en</string>
   <key>CFBundleExecutable</key>
   <string>Cockpit</string>
+  <key>CFBundleIconFile</key>
+  <string>NEOIcon</string>
   <key>CFBundleIdentifier</key>
   <string>ai.speer.cockpit</string>
   <key>CFBundleInfoDictionaryVersion</key>

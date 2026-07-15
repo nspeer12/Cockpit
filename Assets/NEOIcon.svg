@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">NEO — Networked Executive Orchestrator</title>
+  <desc id="desc">A cyan and violet holographic hexagonal core with orbit rings on a dark midnight field.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050918"/>
+      <stop offset="0.58" stop-color="#0a1230"/>
+      <stop offset="1" stop-color="#13082c"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="44%" r="55%">
+      <stop offset="0" stop-color="#e3fbff"/>
+      <stop offset="0.15" stop-color="#6eeeff"/>
+      <stop offset="0.48" stop-color="#09b9ec"/>
+      <stop offset="0.75" stop-color="#5a34da"/>
+      <stop offset="1" stop-color="#171441"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#74f6ff"/>
+      <stop offset="0.48" stop-color="#05c6ef"/>
+      <stop offset="1" stop-color="#b56cff"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="22" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="20" y="20" width="984" height="984" rx="204" fill="none" stroke="#3bf1ff" stroke-opacity=".28" stroke-width="4"/>
+
+  <g opacity=".28" stroke="#36dfff" fill="none">
+    <path d="M96 230H928M96 512H928M96 794H928" stroke-width="2"/>
+    <path d="M230 96V928M512 96V928M794 96V928" stroke-width="2"/>
+  </g>
+
+  <circle cx="512" cy="458" r="320" fill="#16d8ff" opacity=".13" filter="url(#soft)"/>
+  <circle cx="512" cy="458" r="244" fill="none" stroke="#27e7ff" stroke-opacity=".25" stroke-width="14"/>
+  <ellipse cx="512" cy="458" rx="356" ry="128" fill="none" stroke="url(#edge)" stroke-width="20" opacity=".9" transform="rotate(-22 512 458)" filter="url(#glow)"/>
+  <ellipse cx="512" cy="458" rx="290" ry="105" fill="none" stroke="#7ef8ff" stroke-width="7" stroke-opacity=".7" transform="rotate(52 512 458)"/>
+
+  <g filter="url(#glow)">
+    <path d="M512 174L758 316V600L512 742L266 600V316Z" fill="url(#core)" fill-opacity=".95" stroke="url(#edge)" stroke-width="24" stroke-linejoin="round"/>
+    <path d="M512 249L693 354V563L512 668L331 563V354Z" fill="#071a39" fill-opacity=".82" stroke="#8cf8ff" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M512 299L649 379V538L512 618L375 538V379Z" fill="none" stroke="#26dbff" stroke-width="5" opacity=".78"/>
+    <circle cx="512" cy="458" r="95" fill="#35eaff" opacity=".25"/>
+    <circle cx="512" cy="458" r="62" fill="#d7fbff"/>
+    <circle cx="512" cy="458" r="36" fill="#49dfff"/>
+  </g>
+
+  <g fill="#93f9ff">
+    <circle cx="512" cy="138" r="13"/><circle cx="788" cy="297" r="10"/><circle cx="788" cy="620" r="13"/>
+    <circle cx="512" cy="778" r="10"/><circle cx="236" cy="620" r="13"/><circle cx="236" cy="297" r="10"/>
+  </g>
+
+  <g font-family="SF Mono, Menlo, monospace" text-anchor="middle">
+    <text x="512" y="895" fill="#d7fbff" font-size="116" font-weight="700" letter-spacing="26">NEO</text>
+    <text x="512" y="940" fill="#47e9ff" fill-opacity=".8" font-size="20" font-weight="600" letter-spacing="6">EXECUTIVE ORCHESTRATOR</text>
+  </g>
+</svg>
