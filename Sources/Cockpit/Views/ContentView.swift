@@ -1,16 +1,11 @@
 import SwiftUI
-import AppKit
+import Foundation
 
 struct ContentView: View {
     @State private var selectedTab: Tab = .overview
     @State private var show3DBackground: Bool = true
     @State private var mouseRotation: CGPoint = .zero
-    @State private var jarvisController = JarvisController()
-    @State private var tabTransition: TabTransitionDirection = .forward
-
-    enum TabTransitionDirection {
-        case forward, backward
-    }
+    @State private var neoController = NEOController()
 
     enum Tab: String, CaseIterable {
         case overview = "Overview"
@@ -34,72 +29,49 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // 3D RealityKit Background with mouse parallax
-            HolographicRealityBackground(
-                rotation: mouseRotation,
-                isVisible: show3DBackground
-            )
+            HolographicRealityBackground(rotation: mouseRotation, isVisible: show3DBackground)
 
             VStack(spacing: 0) {
-                // Top Command Bar
-                TopCommandBar(jarvisController: jarvisController)
+                TopCommandBar(neoController: neoController)
 
-                // Main Content with crossfade transition
                 Group {
                     switch selectedTab {
-                    case .overview:
-                        OverviewView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("overview")
-                    case .inference:
-                        InferencePanelView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("inference")
-                    case .projects:
-                        ProjectsView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("projects")
-                    case .network:
-                        NetworkView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("network")
-                    case .node:
-                        NodeView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("node")
-                    case .ambient:
-                        AmbientDashboardView()
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.97)).animation(.easeOut(duration: 0.3)),
-                                removal: .opacity.animation(.easeIn(duration: 0.15))
-                            ))
-                            .id("ambient")
+                    case .overview: OverviewView().id("overview")
+                    case .inference: InferencePanelView().id("inference")
+                    case .projects: ProjectsView().id("projects")
+                    case .network: NetworkView().id("network")
+                    case .node: NodeView().id("node")
+                    case .ambient: AmbientDashboardView().id("ambient")
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .animation(.easeInOut(duration: 0.25), value: selectedTab)
 
-                // Custom Tab Bar
                 CustomTabBar(selectedTab: $selectedTab)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
                     .background(.ultraThinMaterial)
             }
+
+            if neoController.jarvisActive || !neoController.responseText.isEmpty {
+                NEOOverlay(controller: neoController)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onAppear {
+            neoController.onCommandRecognized = { command in
+                neoController.speak(NEOIdentity.acknowledgement(for: command))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cockpitSelectTab)) { notification in
+            guard let tab = notification.object as? Tab else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { selectedTab = tab }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cockpitToggle3D)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) { show3DBackground.toggle() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cockpitToggleNEO)) { _ in
+            neoController.toggleNEOMode()
         }
     }
 }

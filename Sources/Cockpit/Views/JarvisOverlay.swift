@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// JARVIS voice command overlay — holographic floating panel with
+/// NEO voice presence overlay — holographic floating panel with
 /// waveform visualization, transcript feedback, and command history.
-struct JarvisOverlay: View {
-    let controller: JarvisController
+struct NEOOverlay: View {
+    let controller: NEOController
     @State private var waveformPhases: [Double] = Array(repeating: 0, count: 20)
     let waveformTimer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -135,8 +135,8 @@ struct JarvisOverlay: View {
 
             Spacer()
 
-            // JARVIS label
-            Text("J.A.R.V.I.S.")
+            // NEO label
+            Text("N.E.O.")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundStyle(accentColor.opacity(0.6))
                 .tracking(3)
@@ -328,17 +328,17 @@ private struct HolographicCornerRings: View {
     }
 }
 
-// MARK: - JARVIS Button (Enhanced with Hex Ring)
+// MARK: - NEO Button (Enhanced with Hex Ring)
 
-/// Glowing JARVIS toggle button with hex ring animation.
-struct JarvisButton: View {
-    let controller: JarvisController
+/// Glowing NEO presence button with hex ring animation.
+struct NEOButton: View {
+    let controller: NEOController
     @State private var hexRotation: CGFloat = 0
 
     var body: some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                controller.toggleJarvisMode()
+                controller.toggleNEOMode()
             }
         }) {
             ZStack {
@@ -375,7 +375,7 @@ struct JarvisButton: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .help(controller.jarvisActive ? "Disable JARVIS" : "Enable JARVIS voice commands")
+        .help(controller.jarvisActive ? "Take NEO offline" : "Bring NEO online")
     }
 
     // MARK: - Pulse Rings

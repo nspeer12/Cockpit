@@ -4,7 +4,7 @@ import SwiftUI
 
 struct TopCommandBar: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    let jarvisController: JarvisController
+    let neoController: NEOController
     @State private var scanOffset: CGFloat = -60
     @State private var pulsateGlow: Bool = false
 
@@ -43,7 +43,7 @@ struct TopCommandBar: View {
             HStack(spacing: horizontalSizeClass == .compact ? 12 : 24) {
                 LiveStatusIndicator()
 
-                JarvisButton(controller: jarvisController)
+                NEOButton(controller: neoController)
 
                 Button(action: {}) {
                     Image(systemName: "person.crop.circle")

@@ -1,0 +1,10 @@
+{
+  "name": "Cockpit — Hermes Command Interface",
+  "short_name": "Cockpit",
+  "description": "Private, read-only Hermes Cockpit companion dashboard.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060610",
+  "theme_color": "#060610",
+  "icons": [{"src": "/icons/cockpit.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}

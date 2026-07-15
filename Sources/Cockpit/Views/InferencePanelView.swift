@@ -9,7 +9,7 @@ struct InferencePanelView: View {
     }
     @State private var loadedOllamaModel: String?
     @State private var inferenceResult: String = ""
-    @State private var testPrompt: String = "Say hello in one short sentence."
+    @State private var testPrompt: String = "Introduce yourself as NEO in one short sentence."
     @State private var isRunningInference = false
     @State private var selectedSource: InferenceService.ModelSource = .ollamaLocal
     @State private var lastRefresh: Date?
@@ -17,7 +17,7 @@ struct InferencePanelView: View {
     @State private var conversation: [ChatMessage] = []
     @State private var tokenCount: Int = 0
     @State private var useStreaming = true
-    @State private var systemPrompt: String = "You are a helpful assistant."
+    @State private var systemPrompt: String = NEOIdentity.systemPrompt
     @State private var temperature: Double = 0.7
 
     let refreshTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()

@@ -2,7 +2,7 @@ import Foundation
 import Speech
 import AVFoundation
 
-/// Manages JARVIS voice command mode — continuous speech recognition with wake word detection
+/// Manages the NEO voice presence — continuous speech recognition with wake word detection
 /// and text-to-speech synthesis for spoken responses.
 @MainActor
 @Observable
@@ -66,9 +66,9 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
         }
     }
 
-    // MARK: - JARVIS Toggle
+    // MARK: - NEO Presence Toggle
 
-    func toggleJarvisMode() {
+    func toggleNEOMode() {
         if jarvisActive {
             stopListening()
             jarvisActive = false
@@ -76,10 +76,10 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
             isGatheringCommand = false
             commandBuffer = ""
             currentTranscript = ""
-            statusMessage = "JARVIS deactivated"
+            statusMessage = "NEO presence offline"
         } else {
             jarvisActive = true
-            statusMessage = "JARVIS activated — listening for 'Hey Jarvis'"
+            statusMessage = "NEO online — listening for '\(NEOIdentity.wakePhrase)'"
             startListening()
         }
     }
@@ -203,7 +203,7 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
 
                 // After delivering command, start listening for wake word again
                 self.currentTranscript = ""
-                self.statusMessage = "Listening for 'Hey Jarvis'..."
+                self.statusMessage = "Listening for '\(NEOIdentity.wakePhrase)'..."
             }
         }
     }
@@ -242,7 +242,7 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
 
     private func containsWakeWord(_ text: String) -> Bool {
         let lower = text.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-        return lower.contains("hey jarvis") || lower.hasSuffix("jarvis") || lower == "jarvis"
+        return lower.contains("hey neo") || lower.hasSuffix("neo") || lower == "neo"
     }
 
     private func resetSilenceTimer() {
@@ -264,12 +264,12 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
                     self.onCommandRecognized?(command)
 
                     self.currentTranscript = ""
-                    self.statusMessage = "Listening for 'Hey Jarvis'..."
+                    self.statusMessage = "Listening for '\(NEOIdentity.wakePhrase)'..."
                 } else if self.isGatheringCommand && self.commandBuffer.isEmpty {
                     // No command spoken after wake word — go back to wake word mode
                     self.isGatheringCommand = false
                     self.wakeWordDetected = false
-                    self.statusMessage = "No command detected — listening for 'Hey Jarvis'..."
+                    self.statusMessage = "No command detected — listening for '\(NEOIdentity.wakePhrase)'..."
                 }
             }
         }
@@ -319,6 +319,9 @@ final class JarvisController: NSObject, SFSpeechRecognitionTaskDelegate, AVSpeec
         }
     }
 }
+
+/// Legacy implementation backing Cockpit's NEO voice presence.
+typealias NEOController = JarvisController
 
 // MARK: - Transcript Entry
 

@@ -16,3 +16,5 @@ swift test \
   -Xlinker -F -Xlinker "$FRAMEWORKS" \
   -Xlinker -rpath -Xlinker "$FRAMEWORKS" \
   -Xlinker -rpath -Xlinker "$INTEROP"
+
+python3 -m unittest discover -s web/tests -v

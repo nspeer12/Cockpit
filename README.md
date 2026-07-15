@@ -1,76 +1,58 @@
-# Cockpit — Hermes Holographic Command Interface
+# Cockpit — Hermes Command Interface
 
-Tony Stark / JARVIS inspired macOS SwiftUI application — dark holographic dashboard for monitoring and controlling the Hermes AI agent ecosystem.
+A private, high-tech **portal to reality** for the Hermes ecosystem. Cockpit has two complementary surfaces:
 
-## Architecture
+- **Native macOS cockpit** — the rich local command center: live hardware/network/project/Hermes data, local inference, JARVIS voice, and ambient camera/microphone awareness.
+- **Mobile companion PWA** — a private, installable, read-only status dashboard for a phone over Tailscale HTTPS.
 
-```
-Sources/Cockpit/
-├── App/
-│   └── CockpitApp.swift          # @main entry point
-├── Views/
-│   ├── ContentView.swift         # Tab shell + Overview dashboard
-│   ├── ProjectsView.swift        # Hermes-Projects scanner (git status, modified dates)
-│   ├── NetworkView.swift         # Network devices, ping scanning, speed tests
-│   ├── NodeView.swift            # Hermes node status (live system data)
-│   ├── RemoteModelsStatusView.swift  # Remote model health checks
-│   └── Common/
-│       └── GlassButtonStyle.swift
-├── 3D/
-│   └── HolographicView.swift     # RealityKit 3D scene + holographic background/grid
-└── Services/
-    ├── SystemInfoService.swift   # Real macOS: hostname, CPU, memory, disk, uptime
-    ├── InferenceService.swift    # Routes to Ollama, LM Studio, xAI APIs
-    ├── NetworkQualityService.swift  # Apple networkQuality benchmark wrapper
-    └── ProjectScanner.swift      # ~/Desktop/Hermes-Projects directory scanner
+## Repository map
+
+```text
+Sources/Cockpit/  SwiftUI macOS 15+ app (Swift 6, no external packages)
+Tests/            Swift Testing unit tests
+web/
+├── server.py     read-only status API + SSE transport
+├── static/       responsive installable PWA assets
+└── tests/        Python stdlib API/PWA contract tests
+docs/             architecture and product decisions
+scripts/          build and test wrappers
 ```
 
-## Tabs
+See [Architecture](docs/ARCHITECTURE.md) for boundaries and evolution rules, and [Mobile companion](docs/MOBILE_COMPANION.md) for the phone product decision.
 
-| Tab | Description |
-|-----|-------------|
-| **Overview** | Live holographic dashboard — rotating hex core, scanning lines, CPU/memory/disk/model metric cards, host identity bar |
-| **Projects** | Scans `~/Desktop/Hermes-Projects/`, shows git status and last-modified |
-| **Network** | Known devices table with ping scanning, Apple networkQuality speed tests with history |
-| **Node** | Real Hermes node identity, inference config, system resources, remote agents, cron jobs (all live from `hermes` CLI) |
-| **Overview** | *(hidden)* Remote model health checks against MacBook Ollama + Cyberbeast LM Studio |
-
-## Aesthetic
-
-- Dark theme with gradient backgrounds
-- Neon cyan/blue/purple color palette
-- Canvas-drawn holographic grid with animated scanning line
-- Rotating hex-core with angular gradient rings
-- Glassmorphism cards (.ultraThinMaterial)
-- Glowing borders, monospaced type, tracking
-
-## Tech Stack
-
-- **SwiftUI** (macOS 15+)
-- **RealityKit** (3D holographic elements)
-- **Canvas API** (holographic grid, procedural drawing)
-- **AVFoundation** (planned: camera + mic ambient awareness)
-- **Process + sysctl** (live system metrics: hostname, CPU, memory, disk, uptime)
-- **URLSession** (HTTP health checks + inference API calls)
-- **hermes CLI** (config, profile, cron in NodeView)
-
-## Build & Run
+## macOS app
 
 ```bash
 cd ~/Desktop/Hermes-Projects/Cockpit
 swift build
-swift run
+swift run Cockpit
 ```
 
-Or open in Xcode:
+The app requires macOS 15+, the `hermes` CLI for the Node view, and appropriate system permissions before camera/microphone/voice features can operate.
+
+## Companion PWA
 
 ```bash
-open Package.swift
+cd ~/Desktop/Hermes-Projects/Cockpit
+python3 web/server.py
 ```
 
-## Environment
+Local development: `http://127.0.0.1:8080`
 
-- Requires macOS 15+ (Sequoia)
-- `hermes` CLI must be on PATH for NodeView live data
-- `XAI_API_KEY` env var needed for xAI inference routing
-- `networkQuality` CLI (built-in macOS) for speed tests
+Phone access: expose privately through Tailscale HTTPS, then install from Safari/Chrome. Do **not** make this diagnostic server public.
+
+```bash
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+```
+
+The companion intentionally exposes only live read-only status: CPU, memory, disk, model, uptime, and Tailnet node count.
+
+## Verification
+
+```bash
+./scripts/test.sh
+python3 -m unittest discover -s web/tests -v
+swift build
+```
+
+The Swift test wrapper is deliberate: the current macOS Command Line Tools layout requires explicit Swift Testing framework paths.

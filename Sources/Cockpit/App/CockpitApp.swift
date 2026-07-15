@@ -32,7 +32,7 @@ struct CockpitApp: App {
 
                 Button("Toggle 3D Background") { toggle3DBackground() }
                     .keyboardShortcut("B", modifiers: [.command, .shift])
-                Button("Toggle JARVIS")         { toggleJarvis() }
+                Button("Toggle NEO Presence") { toggleNEO() }
                     .keyboardShortcut("J", modifiers: [.command, .shift])
             }
         }
@@ -47,8 +47,8 @@ struct CockpitApp: App {
         NotificationCenter.default.post(name: .cockpitToggle3D, object: nil)
     }
 
-    private func toggleJarvis() {
-        NotificationCenter.default.post(name: .cockpitToggleJarvis, object: nil)
+    private func toggleNEO() {
+        NotificationCenter.default.post(name: .cockpitToggleNEO, object: nil)
     }
 }
 
@@ -146,5 +146,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @unchecked Sendable {
 extension Notification.Name {
     static let cockpitSelectTab = Notification.Name("cockpitSelectTab")
     static let cockpitToggle3D = Notification.Name("cockpitToggle3D")
-    static let cockpitToggleJarvis = Notification.Name("cockpitToggleJarvis")
+    static let cockpitToggleNEO = Notification.Name("cockpitToggleNEO")
 }

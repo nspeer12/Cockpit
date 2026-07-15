@@ -14,6 +14,10 @@ Package.resolved
 .AppleDouble
 .LSOverride
 Icon?
+
+# Cockpit PWA assets (the macOS Icon? rule above is case-insensitive here)
+!web/static/icons/
+!web/static/icons/**
 .Spotlight-V100
 .Trashes
 

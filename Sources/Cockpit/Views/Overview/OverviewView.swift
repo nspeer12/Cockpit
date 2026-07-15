@@ -183,12 +183,12 @@ struct OverviewView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 ZStack {
-                    Text("HERMES")
+                    Text("N E O")
                         .font(.system(size: 52, weight: .black, design: .rounded))
                         .foregroundStyle(.cyan.opacity(0.15))
                         .blur(radius: 20)
 
-                    Text("HERMES")
+                    Text("N E O")
                         .font(.system(size: 52, weight: .black, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
@@ -200,7 +200,7 @@ struct OverviewView: View {
                         .shadow(color: .cyan.opacity(0.3), radius: 12)
                 }
 
-                Text("COMMAND INTERFACE")
+                Text(NEOIdentity.expansion.uppercased())
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .tracking(8)
@@ -216,7 +216,7 @@ struct OverviewView: View {
                 HStack(spacing: 20) {
                     HolographicLabel(hostname, icon: "desktopcomputer")
                     HolographicLabel("UPTIME \(uptime)", icon: "clock", color: .green)
-                    HolographicLabel(shortModelName(activeModel), icon: "brain.head.profile", color: .purple)
+                    HolographicLabel(NEOIdentity.designation.uppercased(), icon: "person.wave.2", color: .purple)
                 }
                 .padding(.top, 8)
             }
